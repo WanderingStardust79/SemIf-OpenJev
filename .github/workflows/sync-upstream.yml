@@ -1,0 +1,34 @@
+name: Check upstream
+# Fetch only. Never merges or pushes: upstream commits are unvetted (see CUSTOMIZATIONS.md).
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 09:00 UTC
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Report new upstream commits
+        run: |
+          git remote add upstream https://github.com/TheoLeeCJ/SemIf-OpenJev.git
+          git fetch upstream
+          {
+            echo "## Upstream check for TheoLeeCJ/SemIf-OpenJev"
+            echo "Vetted commit: 23cf1f39fc9534fe81437200959b6dfc7106e45a"
+            echo
+            if git merge-base --is-ancestor upstream/master HEAD; then
+              echo "No new upstream commits."
+            else
+              echo "New upstream commits (unvetted, review before merging):"
+              git log --oneline HEAD..upstream/master | head -50
+              echo
+              echo "Files changed since the vetted commit:"
+              git diff --stat 23cf1f39fc9534fe81437200959b6dfc7106e45a..upstream/master | tail -60
+            fi
+          } | tee -a "$GITHUB_STEP_SUMMARY"
